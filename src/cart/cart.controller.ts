@@ -1,4 +1,5 @@
 import { Controller, Get, Delete, Put, Body, Req, Post, HttpStatus } from '@nestjs/common';
+import getDBPool from 'src/database/utils/getDBPool';
 
 // import { BasicAuthGuard, JwtAuthGuard } from '../auth';
 import { OrderService } from '../order';
@@ -59,31 +60,34 @@ export class CartController {
     const userId = getUserIdFromRequest(req);
     const cart = await this.cartService.findByUserId(userId);
 
-    if (!(cart && cart.items.length)) {
-      const statusCode = HttpStatus.BAD_REQUEST;
-      req.statusCode = statusCode
+    const { pool, client } = await getDBPool();
 
-      return {
-        statusCode,
-        message: 'Cart is empty',
-      }
+    try {
+      await client.query('BEGIN');
+
+      const { id: cartId, items } = cart;
+      const total = calculateCartTotal(cart);
+      await this.orderService.create({
+        ...body, // TODO: validate and pick only necessary data
+        userId,
+        cartId,
+        items,
+        total,
+      }, client);
+      await this.cartService.removeByUserId(userId, client);
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+      pool.end();
     }
-
-    const { id: cartId, items } = cart;
-    const total = calculateCartTotal(cart);
-    const order = this.orderService.create({
-      ...body, // TODO: validate and pick only necessary data
-      userId,
-      cartId,
-      items,
-      total,
-    });
-    this.cartService.removeByUserId(userId);
 
     return {
       statusCode: HttpStatus.OK,
       message: 'OK',
-      data: { order }
-    }
+    };
   }
 }

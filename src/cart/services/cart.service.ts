@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import fetch from 'node-fetch';
 import { Injectable } from '@nestjs/common';
 import getDBClient from 'src/database/utils/getDBClient';
 import { v4 } from 'uuid';
 
 import { Cart, CartItem } from '../models';
+import { PoolClient } from 'pg';
 
 @Injectable()
 export class CartService {
@@ -69,12 +71,14 @@ export class CartService {
     dbClient.end();
   }
 
-  async removeByUserId(userId): Promise<void> {
-    const dbClient = await getDBClient();
+  async removeByUserId(userId, poolClient?: PoolClient): Promise<void> {
+    const dbClient = poolClient ?? await getDBClient();
     await dbClient.query(
       `DELETE FROM carts WHERE user_id = $1;`,
       [userId]
     );
-    dbClient.end();
+
+    // @ts-expect-error end foesn't exist in pg.PoolClient but exist in pg.Client
+    if (!poolClient) dbClient.end();
   }
 }
