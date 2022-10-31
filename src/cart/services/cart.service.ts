@@ -1,4 +1,4 @@
-// import fetch from 'node-fetch';
+import fetch from 'node-fetch';
 import { Injectable } from '@nestjs/common';
 import getDBClient from 'src/database/utils/getDBClient';
 import { v4 } from 'uuid';
@@ -15,11 +15,12 @@ export class CartService {
     );
     dbClient.end();
 
-    // const productsDataResponse = await fetch('https://6b1jcnr1b2.execute-api.eu-west-1.amazonaws.com/products');
-    // const productsData = await productsDataResponse.json();
+    const productsDataResponse = await fetch('https://6b1jcnr1b2.execute-api.eu-west-1.amazonaws.com/products');
+    const productsData = await productsDataResponse.json();
+
     const cartIdsWithGroupedItems = cart.rows.reduce<{ [cartId: string]: CartItem[] }>((acc, row) => {
       if (!acc[row.id]) acc[row.id] = [];
-      acc[row.id].push({ product: row.product_id /* productsData.find((product) => product.id === row.product_id) */, count: row.count, });
+      acc[row.id].push({ product: productsData.find((product) => product.id === row.product_id), count: row.count, });
       return acc;
     }, {});
 
@@ -57,9 +58,9 @@ export class CartService {
     return this.createByUserId(userId);
   }
 
-  async updateByUserId(userId: string, { product, count }: { product: string; count: number }): Promise<void> {
+  async updateByUserId(userId: string, { product, count }: { product: { id: string }; count: number }): Promise<void> {
     const { id } = await this.findOrCreateByUserId(userId);
-    const query = `INSERT INTO cart_items (product_id, cart_id, count) VALUES ('${product}', '${id}', ${count})
+    const query = `INSERT INTO cart_items (product_id, cart_id, count) VALUES ('${product.id}', '${id}', ${count})
       ON CONFLICT ON CONSTRAINT unique_item DO UPDATE
       SET count = EXCLUDED.count;`;
 
