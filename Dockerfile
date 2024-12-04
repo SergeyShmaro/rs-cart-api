@@ -2,7 +2,7 @@
 FROM node:14-alpine3.15 AS BUILD
 WORKDIR /build
 COPY . .
-RUN npm isntall-clean
+RUN npm ci
 RUN npm run build
 
 # Prod stage: gets dist generated in the previous stage and install prod deps to be able to run the application
